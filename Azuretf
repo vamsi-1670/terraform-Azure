@@ -1,1 +1,71 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "=3.0.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+
+}
+
+resource "azurerm_resource_group" "tfrg" {
+  name = "terraformtest"
+  location = "West Europe"
+}
+
+
+resource "azurerm_virtual_network" "vnettf" {
+  name = "tfvnet"
+  resource_group_name = azurerm_resource_group.tfrg.name
+  location = azurerm_resource_group.tfrg.location
+  address_space = ["10.0.0.0/16"]
+
+}
+
+resource "azurerm_subnet" "subnettf" {
+  name = "subnet-terraform"
+  resource_group_name = azurerm_resource_group.tfrg.name
+  virtual_network_name = azurerm_virtual_network.vnettf.name
+  address_prefixes = ["10.0.2.0/24"]
+}
+
+resource "azurerm_network_interface" "NItf" {
+  name                = "example-nic"
+  location            = azurerm_resource_group.tfrg.location
+  resource_group_name = azurerm_resource_group.tfrg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnettf.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource  "azurerm_windows_virtual_machine" "tftestvm" {
+  name = "terraform-test"
+  resource_group_name = azurerm_resource_group.tfrg.name
+  location = azurerm_resource_group.tfrg.location
+  size = "Standard_F2"
+  admin_username = "adminuser"
+  admin_password = "Passwordtoconnect to vm" /**** --- p/w to connect to VM ****/
+  network_interface_ids = [
+    azurerm_network_interface.NItf.id,
+  ]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+  source_image_reference {
+     publisher = "MicrosoftWindowsServer"
+     offer     = "WindowsServer"
+     sku       = "2016-Datacenter"
+     version   = "latest"
+  }
+
+}
 
